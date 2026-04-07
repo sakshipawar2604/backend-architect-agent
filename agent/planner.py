@@ -14,7 +14,7 @@ KNOWN_ENTITIES = {
 
 
 def to_class_name(word: str) -> str:
-    return word.strip().capitalize()
+    return "".join(part.capitalize() for part in word.strip().replace("-", "_").split("_"))
 
 
 def to_table_name(word: str) -> str:

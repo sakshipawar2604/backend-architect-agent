@@ -1,5 +1,6 @@
 import json
 from agent.planner import generate_blueprint
+from agent.generator import generate_spring_boot_templates
 
 
 def main():
@@ -10,6 +11,13 @@ def main():
 
     print("\nGenerated Blueprint:\n")
     print(json.dumps(blueprint.model_dump(), indent=2))
+
+    generated_files = generate_spring_boot_templates(blueprint)
+
+    print("\nGenerated Spring Boot Templates:\n")
+    for filename, content in generated_files.items():
+        print(f"--- {filename} ---")
+        print(content)
 
 
 if __name__ == "__main__":
