@@ -16,6 +16,8 @@ A simple AI-inspired backend planning tool that converts plain English feature r
 - Repository classes
 - Database tables
 - Detected backend intent
+- Generated JPA entities
+- Generated request/response DTOs
 - Generated Spring Boot controller/service/repository templates
 
 ## Current MVP
@@ -25,10 +27,11 @@ A simple AI-inspired backend planning tool that converts plain English feature r
 - Extracts known entities from prompts
 - Generates a structured backend blueprint
 - Produces starter Spring Boot templates as code output
+- Generates basic entity and DTO classes
 
 ## Next Steps
 
-- Add entity and DTO generation
 - Export generated templates into files
 - Add automated tests
 - Improve package structure and naming rules
+- Add schema generation

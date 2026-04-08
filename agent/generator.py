@@ -1,6 +1,12 @@
 from agent.models import Blueprint
 
 
+JAVA_TYPE_IMPORTS = {
+    "LocalDateTime": "import java.time.LocalDateTime;",
+    "BigDecimal": "import java.math.BigDecimal;",
+}
+
+
 def to_base_entity_name(table_name: str) -> str:
     if table_name.endswith("ies"):
         return table_name[:-3] + "y"
@@ -15,9 +21,100 @@ def to_class_name(name: str) -> str:
     return "".join(part.capitalize() for part in name.replace("-", "_").split("_"))
 
 
+def to_variable_name(name: str) -> str:
+    class_name = to_class_name(name)
+    return class_name[0].lower() + class_name[1:]
+
+
+def parse_fields(fields: list[str]) -> list[tuple[str, str]]:
+    parsed = []
+
+    for field in fields:
+        if ":" not in field:
+            continue
+        name, field_type = field.split(":", 1)
+        parsed.append((name.strip(), field_type.strip()))
+
+    return parsed
+
+
+def build_import_block(field_specs: list[tuple[str, str]]) -> str:
+    imports = sorted(
+        {
+            JAVA_TYPE_IMPORTS[field_type]
+            for _, field_type in field_specs
+            if field_type in JAVA_TYPE_IMPORTS
+        }
+    )
+
+    if not imports:
+        return ""
+
+    return "\n".join(imports) + "\n"
+
+
+def generate_entity(entity_name: str, field_specs: list[tuple[str, str]]) -> str:
+    class_name = to_class_name(entity_name)
+    import_block = build_import_block(field_specs)
+
+    fields_block = "\n".join(
+        f"    private {field_type} {field_name};"
+        for field_name, field_type in field_specs
+    )
+
+    return f"""package com.example.generated.entity;
+
+import jakarta.persistence.*;
+
+{import_block}@Entity
+@Table(name = "{entity_name.lower()}s")
+public class {class_name} {{
+
+{fields_block}
+}}
+"""
+
+
+def generate_request_dto(entity_name: str, field_specs: list[tuple[str, str]]) -> str:
+    class_name = to_class_name(entity_name)
+    import_block = build_import_block(field_specs)
+
+    dto_fields = [(name, field_type) for name, field_type in field_specs if name != "id"]
+    fields_block = "\n".join(
+        f"    private {field_type} {field_name};"
+        for field_name, field_type in dto_fields
+    )
+
+    return f"""package com.example.generated.dto;
+
+{import_block}public class {class_name}RequestDto {{
+
+{fields_block}
+}}
+"""
+
+
+def generate_response_dto(entity_name: str, field_specs: list[tuple[str, str]]) -> str:
+    class_name = to_class_name(entity_name)
+    import_block = build_import_block(field_specs)
+
+    fields_block = "\n".join(
+        f"    private {field_type} {field_name};"
+        for field_name, field_type in field_specs
+    )
+
+    return f"""package com.example.generated.dto;
+
+{import_block}public class {class_name}ResponseDto {{
+
+{fields_block}
+}}
+"""
+
+
 def generate_controller(entity_name: str) -> str:
     class_name = to_class_name(entity_name)
-    variable_name = class_name[0].lower() + class_name[1:]
+    variable_name = to_variable_name(entity_name)
 
     return f"""package com.example.generated.controller;
 
@@ -64,7 +161,7 @@ public class {class_name}Controller {{
 
 def generate_service(entity_name: str) -> str:
     class_name = to_class_name(entity_name)
-    variable_name = class_name[0].lower() + class_name[1:]
+    variable_name = to_variable_name(entity_name)
 
     return f"""package com.example.generated.service;
 
@@ -120,10 +217,22 @@ public interface {class_name}Repository extends JpaRepository<{class_name}, Long
 def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, str]:
     generated_files = {}
 
+    entity_map = {entity.name.lower(): entity for entity in blueprint.entities}
+
     for table_name in blueprint.database_tables:
         entity_name = to_base_entity_name(table_name)
         class_name = to_class_name(entity_name)
 
+        entity_spec = entity_map.get(entity_name.lower())
+        field_specs = parse_fields(entity_spec.fields) if entity_spec else [
+            ("id", "Long"),
+            ("name", "String"),
+            ("createdAt", "LocalDateTime"),
+        ]
+
+        generated_files[f"{class_name}.java"] = generate_entity(entity_name, field_specs)
+        generated_files[f"{class_name}RequestDto.java"] = generate_request_dto(entity_name, field_specs)
+        generated_files[f"{class_name}ResponseDto.java"] = generate_response_dto(entity_name, field_specs)
         generated_files[f"{class_name}Controller.java"] = generate_controller(entity_name)
         generated_files[f"{class_name}Service.java"] = generate_service(entity_name)
         generated_files[f"{class_name}Repository.java"] = generate_repository(entity_name)
