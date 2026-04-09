@@ -3,6 +3,7 @@ from pathlib import Path
 from agent.generator import (
     generate_spring_boot_templates,
     export_templates,
+    generate_schema_sql,
 )
 from agent.planner import generate_blueprint
 
@@ -17,6 +18,7 @@ def test_generate_templates_for_product_blueprint():
     assert "ProductRepository.java" in templates
     assert "ProductRequestDto.java" in templates
     assert "ProductResponseDto.java" in templates
+    assert "schema.sql" in templates
 
 
 def test_generated_entity_contains_expected_fields_and_annotations():
@@ -33,6 +35,22 @@ def test_generated_entity_contains_expected_fields_and_annotations():
     assert 'Table(name = "products")' in content
     assert "private String name;" in content
     assert "private BigDecimal price;" in content
+
+
+def test_generated_entity_contains_relationship_annotations():
+    blueprint = generate_blueprint("Build order and payment management backend")
+    templates = generate_spring_boot_templates(blueprint)
+
+    _, order_entity = templates["Order.java"]
+    _, payment_entity = templates["Payment.java"]
+
+    assert "@ManyToOne" in order_entity
+    assert '@JoinColumn(name = "user_id")' in order_entity
+    assert "private User user;" in order_entity
+
+    assert "@ManyToOne" in payment_entity
+    assert '@JoinColumn(name = "order_id")' in payment_entity
+    assert "private Order order;" in payment_entity
 
 
 def test_generated_controller_uses_dtos():
@@ -60,6 +78,18 @@ def test_generated_service_uses_repository_and_dtos():
     assert "import com.example.generated.dto.ProductResponseDto;" in content
     assert "public ProductResponseDto create(ProductRequestDto request)" in content
     assert "productRepository.deleteById(id);" in content
+
+
+def test_generate_schema_sql_includes_foreign_keys():
+    blueprint = generate_blueprint("Build order and payment management backend")
+    schema = generate_schema_sql(blueprint)
+
+    assert "CREATE TABLE orders" in schema
+    assert "user_id BIGINT" in schema
+    assert "FOREIGN KEY (user_id) REFERENCES users(id)" in schema
+    assert "CREATE TABLE payments" in schema
+    assert "order_id BIGINT" in schema
+    assert "FOREIGN KEY (order_id) REFERENCES orders(id)" in schema
 
 
 def test_export_templates_creates_files(tmp_path: Path):
@@ -94,17 +124,9 @@ def test_export_templates_creates_files(tmp_path: Path):
         / "ProductController.java"
     )
 
+    schema_path = tmp_path / "schema.sql"
+
     assert product_entity_path.exists()
     assert product_controller_path.exists()
+    assert schema_path.exists()
     assert "class Product" in product_entity_path.read_text(encoding="utf-8")
-    
-def test_generate_schema_sql():
-    blueprint = generate_blueprint("Create CRUD API for products")
-
-    from agent.generator import generate_schema_sql
-
-    schema = generate_schema_sql(blueprint)
-
-    assert "CREATE TABLE products" in schema
-    assert "id BIGINT PRIMARY KEY AUTO_INCREMENT" in schema
-    assert "name VARCHAR(255)" in schema

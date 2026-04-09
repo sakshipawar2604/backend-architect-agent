@@ -1,5 +1,5 @@
 import re
-from agent.models import Blueprint, EntitySpec, EndpointSpec
+from agent.models import Blueprint, EntitySpec, EndpointSpec, RelationshipSpec
 
 
 KNOWN_ENTITIES = {
@@ -47,9 +47,37 @@ def detect_entities(feature_request: str) -> list[str]:
 
     matches = re.findall(r"\bfor\s+([a-zA-Z]+)", request)
     if matches:
-        return [matches[0].lower()]
+        return [matches[0].lower().rstrip("s")]
 
     return ["resource"]
+
+
+def detect_relationships(entity_names: list[str]) -> list[RelationshipSpec]:
+    entity_set = set(entity_names)
+    relationships = []
+
+    rules = [
+        ("order", "user", "ManyToOne", "user", "user_id"),
+        ("payment", "order", "ManyToOne", "order", "order_id"),
+        ("inventory", "product", "ManyToOne", "product", "product_id"),
+        ("product", "category", "ManyToOne", "category", "category_id"),
+        ("order", "product", "ManyToOne", "product", "product_id"),
+        ("user", "role", "ManyToOne", "role", "role_id"),
+    ]
+
+    for source_entity, target_entity, relationship_type, field_name, join_column in rules:
+        if source_entity in entity_set and target_entity in entity_set:
+            relationships.append(
+                RelationshipSpec(
+                    source_entity=source_entity,
+                    target_entity=target_entity,
+                    relationship_type=relationship_type,
+                    field_name=field_name,
+                    join_column=join_column,
+                )
+            )
+
+    return relationships
 
 
 def build_entity_specs(entity_names: list[str]) -> list[EntitySpec]:
@@ -153,6 +181,8 @@ def build_auth_blueprint() -> Blueprint:
         ),
     ]
 
+    relationships = detect_relationships(["user", "role"])
+
     return Blueprint(
         feature_name="User Authentication System",
         detected_intent="authentication",
@@ -161,6 +191,7 @@ def build_auth_blueprint() -> Blueprint:
         services=["AuthService", "UserService", "JwtService", "RoleService"],
         repositories=["UserRepository", "RoleRepository"],
         database_tables=["users", "roles"],
+        relationships=relationships,
     )
 
 
@@ -170,6 +201,7 @@ def build_crud_blueprint(feature_request: str, entity_names: list[str]) -> Bluep
     services = [f"{name}Service" for name in class_names]
     repositories = [f"{name}Repository" for name in class_names]
     tables = [to_table_name(entity) for entity in entity_names]
+    relationships = detect_relationships(entity_names)
 
     return Blueprint(
         feature_name=feature_request.title(),
@@ -179,12 +211,14 @@ def build_crud_blueprint(feature_request: str, entity_names: list[str]) -> Bluep
         services=services,
         repositories=repositories,
         database_tables=tables,
+        relationships=relationships,
     )
 
 
 def build_general_blueprint(feature_request: str, entity_names: list[str]) -> Blueprint:
     class_names = [to_class_name(entity) for entity in entity_names]
     tables = [to_table_name(entity) for entity in entity_names]
+    relationships = detect_relationships(entity_names)
 
     return Blueprint(
         feature_name=feature_request.title(),
@@ -200,6 +234,7 @@ def build_general_blueprint(feature_request: str, entity_names: list[str]) -> Bl
         services=[f"{name}Service" for name in class_names],
         repositories=[f"{name}Repository" for name in class_names],
         database_tables=tables,
+        relationships=relationships,
     )
 
 

@@ -1,6 +1,7 @@
 from agent.planner import (
     detect_intent,
     detect_entities,
+    detect_relationships,
     generate_blueprint,
 )
 
@@ -30,6 +31,19 @@ def test_detect_entities_falls_back_to_resource():
     assert entities == ["resource"]
 
 
+def test_detect_relationships_for_order_and_payment_domain():
+    relationships = detect_relationships(["order", "payment", "user"])
+
+    assert any(
+        rel.source_entity == "order" and rel.target_entity == "user"
+        for rel in relationships
+    )
+    assert any(
+        rel.source_entity == "payment" and rel.target_entity == "order"
+        for rel in relationships
+    )
+
+
 def test_generate_auth_blueprint():
     blueprint = generate_blueprint("Build user auth system")
 
@@ -37,6 +51,7 @@ def test_generate_auth_blueprint():
     assert blueprint.feature_name == "User Authentication System"
     assert "AuthService" in blueprint.services
     assert "users" in blueprint.database_tables
+    assert any(rel.target_entity == "role" for rel in blueprint.relationships)
 
 
 def test_generate_crud_blueprint_for_products():

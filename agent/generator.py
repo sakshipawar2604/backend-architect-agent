@@ -1,5 +1,12 @@
 from pathlib import Path
-from agent.models import Blueprint
+from agent.models import Blueprint, RelationshipSpec
+
+
+JAVA_TYPE_IMPORTS = {
+    "LocalDateTime": "import java.time.LocalDateTime;",
+    "BigDecimal": "import java.math.BigDecimal;",
+}
+
 
 SQL_TYPE_MAPPING = {
     "Long": "BIGINT",
@@ -9,11 +16,6 @@ SQL_TYPE_MAPPING = {
     "LocalDateTime": "TIMESTAMP",
 }
 
-JAVA_TYPE_IMPORTS = {
-    "LocalDateTime": "import java.time.LocalDateTime;",
-    "BigDecimal": "import java.math.BigDecimal;",
-}
-
 
 PACKAGE_PATHS = {
     "entity": "entity",
@@ -21,7 +23,7 @@ PACKAGE_PATHS = {
     "controller": "controller",
     "service": "service",
     "repository": "repository",
-    "root": "",  # for schema.sql
+    "root": "",
 }
 
 
@@ -80,10 +82,35 @@ def build_import_block(field_specs: list[tuple[str, str]]) -> str:
     return "\n".join(imports) + "\n"
 
 
-def generate_entity(entity_name: str, field_specs: list[tuple[str, str]]) -> str:
+def get_relationships_for_entity(
+    blueprint: Blueprint,
+    entity_name: str,
+) -> list[RelationshipSpec]:
+    return [
+        relationship
+        for relationship in blueprint.relationships
+        if relationship.source_entity.lower() == entity_name.lower()
+    ]
+
+
+def generate_entity(
+    blueprint: Blueprint,
+    entity_name: str,
+    field_specs: list[tuple[str, str]],
+) -> str:
     class_name = to_class_name(entity_name)
     table_name = to_table_name(entity_name)
     import_block = build_import_block(field_specs)
+    relationships = get_relationships_for_entity(blueprint, entity_name)
+
+    relationship_imports = []
+    if relationships:
+        relationship_imports.append("import jakarta.persistence.JoinColumn;")
+        relationship_imports.append("import jakarta.persistence.ManyToOne;")
+
+    relationship_import_block = "\n".join(relationship_imports)
+    if relationship_import_block:
+        relationship_import_block += "\n"
 
     field_lines = []
     for field_name, field_type in field_specs:
@@ -93,12 +120,20 @@ def generate_entity(entity_name: str, field_specs: list[tuple[str, str]]) -> str
         field_lines.append(f"    private {field_type} {field_name};")
         field_lines.append("")
 
+    for relationship in relationships:
+        target_class = to_class_name(relationship.target_entity)
+        if relationship.relationship_type == "ManyToOne":
+            field_lines.append("    @ManyToOne")
+            field_lines.append(f'    @JoinColumn(name = "{relationship.join_column}")')
+            field_lines.append(f"    private {target_class} {relationship.field_name};")
+            field_lines.append("")
+
     fields_block = "\n".join(field_lines).rstrip()
 
     return f"""package com.example.generated.entity;
 
 import jakarta.persistence.*;
-{import_block}
+{relationship_import_block}{import_block}
 @Entity
 @Table(name = "{table_name}")
 public class {class_name} {{
@@ -254,6 +289,50 @@ public interface {class_name}Repository extends JpaRepository<{class_name}, Long
 """
 
 
+def generate_schema_sql(blueprint: Blueprint) -> str:
+    statements = []
+    entity_map = {entity.name.lower(): entity for entity in blueprint.entities}
+
+    for table_name in blueprint.database_tables:
+        entity_name = to_base_entity_name(table_name)
+        entity_spec = entity_map.get(entity_name.lower())
+
+        field_specs = parse_fields(entity_spec.fields) if entity_spec else [
+            ("id", "Long"),
+            ("name", "String"),
+        ]
+
+        entity_relationships = get_relationships_for_entity(blueprint, entity_name)
+        column_lines = []
+
+        for field_name, field_type in field_specs:
+            sql_type = SQL_TYPE_MAPPING.get(field_type, "VARCHAR(255)")
+
+            if field_name == "id":
+                column_lines.append("    id BIGINT PRIMARY KEY AUTO_INCREMENT")
+            else:
+                column_lines.append(f"    {field_name} {sql_type}")
+
+        for relationship in entity_relationships:
+            column_lines.append(f"    {relationship.join_column} BIGINT")
+
+        foreign_key_lines = []
+        for relationship in entity_relationships:
+            target_table = to_table_name(relationship.target_entity)
+            foreign_key_lines.append(
+                f"    FOREIGN KEY ({relationship.join_column}) REFERENCES {target_table}(id)"
+            )
+
+        all_lines = column_lines + foreign_key_lines
+
+        table_sql = f"""CREATE TABLE {table_name} (
+{",\n".join(all_lines)}
+);"""
+        statements.append(table_sql)
+
+    return "\n\n".join(statements)
+
+
 def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str, str]]:
     generated_files = {}
 
@@ -270,14 +349,14 @@ def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str,
             ("createdAt", "LocalDateTime"),
         ]
 
-        generated_files[f"{class_name}.java"] = ("entity", generate_entity(entity_name, field_specs))
+        generated_files[f"{class_name}.java"] = ("entity", generate_entity(blueprint, entity_name, field_specs))
         generated_files[f"{class_name}RequestDto.java"] = ("dto", generate_request_dto(entity_name, field_specs))
         generated_files[f"{class_name}ResponseDto.java"] = ("dto", generate_response_dto(entity_name, field_specs))
         generated_files[f"{class_name}Controller.java"] = ("controller", generate_controller(entity_name))
         generated_files[f"{class_name}Service.java"] = ("service", generate_service(entity_name))
         generated_files[f"{class_name}Repository.java"] = ("repository", generate_repository(entity_name))
-        generated_files["schema.sql"] = ("root", generate_schema_sql(blueprint))
 
+    generated_files["schema.sql"] = ("root", generate_schema_sql(blueprint))
     return generated_files
 
 
@@ -296,35 +375,3 @@ def export_templates(
         saved_files.append(str(file_path))
 
     return saved_files
-
-def generate_schema_sql(blueprint: Blueprint) -> str:
-    statements = []
-
-    entity_map = {entity.name.lower(): entity for entity in blueprint.entities}
-
-    for table_name in blueprint.database_tables:
-        entity_name = to_base_entity_name(table_name)
-        entity_spec = entity_map.get(entity_name.lower())
-
-        field_specs = parse_fields(entity_spec.fields) if entity_spec else [
-            ("id", "Long"),
-            ("name", "String"),
-        ]
-
-        column_lines = []
-
-        for field_name, field_type in field_specs:
-            sql_type = SQL_TYPE_MAPPING.get(field_type, "VARCHAR(255)")
-
-            if field_name == "id":
-                column_lines.append("    id BIGINT PRIMARY KEY AUTO_INCREMENT")
-            else:
-                column_lines.append(f"    {field_name} {sql_type}")
-
-        table_sql = f"""CREATE TABLE {table_name} (
-{",\n".join(column_lines)}
-);"""
-
-        statements.append(table_sql)
-
-    return "\n\n".join(statements)
