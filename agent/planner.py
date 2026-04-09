@@ -12,6 +12,13 @@ KNOWN_ENTITIES = {
     "inventory": ["id: Long", "sku: String", "quantity: Integer", "updatedAt: LocalDateTime"],
 }
 
+RELATIONSHIP_DEPENDENCIES = {
+    "order": ["user"],
+    "payment": ["order"],
+    "inventory": ["product"],
+    "product": ["category"],
+    "user": ["role"],
+}
 
 def to_class_name(word: str) -> str:
     return "".join(part.capitalize() for part in word.strip().replace("-", "_").split("_"))
@@ -237,10 +244,24 @@ def build_general_blueprint(feature_request: str, entity_names: list[str]) -> Bl
         relationships=relationships,
     )
 
+def expand_related_entities(entity_names: list[str]) -> list[str]:
+    expanded = list(entity_names)
+
+    changed = True
+    while changed:
+        changed = False
+        for entity in list(expanded):
+            for dependency in RELATIONSHIP_DEPENDENCIES.get(entity, []):
+                if dependency not in expanded:
+                    expanded.append(dependency)
+                    changed = True
+
+    return expanded
+
 
 def generate_blueprint(feature_request: str) -> Blueprint:
     intent = detect_intent(feature_request)
-    entities = detect_entities(feature_request)
+    entities = expand_related_entities(detect_entities(feature_request))
 
     if intent == "authentication":
         return build_auth_blueprint()
