@@ -1,9 +1,19 @@
+from pathlib import Path
 from agent.models import Blueprint
 
 
 JAVA_TYPE_IMPORTS = {
     "LocalDateTime": "import java.time.LocalDateTime;",
     "BigDecimal": "import java.math.BigDecimal;",
+}
+
+
+PACKAGE_PATHS = {
+    "entity": "entity",
+    "dto": "dto",
+    "controller": "controller",
+    "service": "service",
+    "repository": "repository",
 }
 
 
@@ -205,6 +215,7 @@ def generate_repository(entity_name: str) -> str:
 
     return f"""package com.example.generated.repository;
 
+import com.example.generated.entity.{class_name};
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -214,7 +225,7 @@ public interface {class_name}Repository extends JpaRepository<{class_name}, Long
 """
 
 
-def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, str]:
+def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str, str]]:
     generated_files = {}
 
     entity_map = {entity.name.lower(): entity for entity in blueprint.entities}
@@ -230,11 +241,28 @@ def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, str]:
             ("createdAt", "LocalDateTime"),
         ]
 
-        generated_files[f"{class_name}.java"] = generate_entity(entity_name, field_specs)
-        generated_files[f"{class_name}RequestDto.java"] = generate_request_dto(entity_name, field_specs)
-        generated_files[f"{class_name}ResponseDto.java"] = generate_response_dto(entity_name, field_specs)
-        generated_files[f"{class_name}Controller.java"] = generate_controller(entity_name)
-        generated_files[f"{class_name}Service.java"] = generate_service(entity_name)
-        generated_files[f"{class_name}Repository.java"] = generate_repository(entity_name)
+        generated_files[f"{class_name}.java"] = ("entity", generate_entity(entity_name, field_specs))
+        generated_files[f"{class_name}RequestDto.java"] = ("dto", generate_request_dto(entity_name, field_specs))
+        generated_files[f"{class_name}ResponseDto.java"] = ("dto", generate_response_dto(entity_name, field_specs))
+        generated_files[f"{class_name}Controller.java"] = ("controller", generate_controller(entity_name))
+        generated_files[f"{class_name}Service.java"] = ("service", generate_service(entity_name))
+        generated_files[f"{class_name}Repository.java"] = ("repository", generate_repository(entity_name))
 
     return generated_files
+
+
+def export_templates(
+    generated_files: dict[str, tuple[str, str]],
+    output_dir: str = "generated"
+) -> list[str]:
+    base_path = Path(output_dir) / "src" / "main" / "java" / "com" / "example" / "generated"
+    saved_files = []
+
+    for filename, (package_type, content) in generated_files.items():
+        package_folder = PACKAGE_PATHS[package_type]
+        file_path = base_path / package_folder / filename
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(content, encoding="utf-8")
+        saved_files.append(str(file_path))
+
+    return saved_files

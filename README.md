@@ -19,6 +19,7 @@ A simple AI-inspired backend planning tool that converts plain English feature r
 - Generated JPA entities
 - Generated request/response DTOs
 - Generated Spring Boot controller/service/repository templates
+- Exported Java files in a generated project structure
 
 ## Current MVP
 
@@ -26,12 +27,18 @@ A simple AI-inspired backend planning tool that converts plain English feature r
 - Detects authentication, CRUD, or general backend intent
 - Extracts known entities from prompts
 - Generates a structured backend blueprint
-- Produces starter Spring Boot templates as code output
-- Generates basic entity and DTO classes
+- Produces starter Spring Boot templates
+- Generates entity and DTO classes
+- Writes generated files into a local output directory
 
-## Next Steps
+## Output Structure
 
-- Export generated templates into files
-- Add automated tests
-- Improve package structure and naming rules
-- Add schema generation
+```text
+generated/
+└── src/main/java/com/example/generated/
+    ├── controller/
+    ├── dto/
+    ├── entity/
+    ├── repository/
+    └── service/
+```
