@@ -30,6 +30,7 @@ A simple AI-inspired backend planning tool that converts plain English feature r
 - Produces starter Spring Boot templates
 - Generates entity and DTO classes
 - Writes generated files into a local output directory
+- Includes unit tests for planner and generator logic
 
 ## Output Structure
 

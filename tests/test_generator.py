@@ -1,0 +1,68 @@
+from pathlib import Path
+
+from agent.generator import (
+    generate_spring_boot_templates,
+    export_templates,
+)
+from agent.planner import generate_blueprint
+
+
+def test_generate_templates_for_product_blueprint():
+    blueprint = generate_blueprint("Create CRUD API for products")
+    templates = generate_spring_boot_templates(blueprint)
+
+    assert "Product.java" in templates
+    assert "ProductController.java" in templates
+    assert "ProductService.java" in templates
+    assert "ProductRepository.java" in templates
+    assert "ProductRequestDto.java" in templates
+    assert "ProductResponseDto.java" in templates
+
+
+def test_generated_entity_contains_expected_fields():
+    blueprint = generate_blueprint("Create CRUD API for products")
+    templates = generate_spring_boot_templates(blueprint)
+
+    package_type, content = templates["Product.java"]
+
+    assert package_type == "entity"
+    assert "class Product" in content
+    assert "private String name;" in content
+    assert "private BigDecimal price;" in content
+
+
+def test_export_templates_creates_files(tmp_path: Path):
+    blueprint = generate_blueprint("Create CRUD API for products")
+    templates = generate_spring_boot_templates(blueprint)
+
+    saved_files = export_templates(templates, output_dir=str(tmp_path))
+
+    assert saved_files
+
+    product_entity_path = (
+        tmp_path
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "example"
+        / "generated"
+        / "entity"
+        / "Product.java"
+    )
+
+    product_controller_path = (
+        tmp_path
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "example"
+        / "generated"
+        / "controller"
+        / "ProductController.java"
+    )
+
+    assert product_entity_path.exists()
+    assert product_controller_path.exists()
+    assert "class Product" in product_entity_path.read_text(encoding="utf-8")
