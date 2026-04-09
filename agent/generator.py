@@ -36,6 +36,15 @@ def to_variable_name(name: str) -> str:
     return class_name[0].lower() + class_name[1:]
 
 
+def to_table_name(entity_name: str) -> str:
+    base = entity_name.lower()
+    if base.endswith("y"):
+        return base[:-1] + "ies"
+    if base.endswith("s"):
+        return base + "es"
+    return base + "s"
+
+
 def parse_fields(fields: list[str]) -> list[tuple[str, str]]:
     parsed = []
 
@@ -65,19 +74,25 @@ def build_import_block(field_specs: list[tuple[str, str]]) -> str:
 
 def generate_entity(entity_name: str, field_specs: list[tuple[str, str]]) -> str:
     class_name = to_class_name(entity_name)
+    table_name = to_table_name(entity_name)
     import_block = build_import_block(field_specs)
 
-    fields_block = "\n".join(
-        f"    private {field_type} {field_name};"
-        for field_name, field_type in field_specs
-    )
+    field_lines = []
+    for field_name, field_type in field_specs:
+        if field_name == "id":
+            field_lines.append("    @Id")
+            field_lines.append("    @GeneratedValue(strategy = GenerationType.IDENTITY)")
+        field_lines.append(f"    private {field_type} {field_name};")
+        field_lines.append("")
+
+    fields_block = "\n".join(field_lines).rstrip()
 
     return f"""package com.example.generated.entity;
 
 import jakarta.persistence.*;
-
-{import_block}@Entity
-@Table(name = "{entity_name.lower()}s")
+{import_block}
+@Entity
+@Table(name = "{table_name}")
 public class {class_name} {{
 
 {fields_block}
@@ -128,11 +143,14 @@ def generate_controller(entity_name: str) -> str:
 
     return f"""package com.example.generated.controller;
 
+import com.example.generated.dto.{class_name}RequestDto;
+import com.example.generated.dto.{class_name}ResponseDto;
+import com.example.generated.service.{class_name}Service;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/{entity_name.lower()}s")
+@RequestMapping("/api/{to_table_name(entity_name)}")
 public class {class_name}Controller {{
 
     private final {class_name}Service {variable_name}Service;
@@ -142,28 +160,28 @@ public class {class_name}Controller {{
     }}
 
     @GetMapping
-    public List<String> getAll() {{
+    public List<{class_name}ResponseDto> getAll() {{
         return {variable_name}Service.getAll();
     }}
 
     @GetMapping("/{{id}}")
-    public String getById(@PathVariable Long id) {{
+    public {class_name}ResponseDto getById(@PathVariable Long id) {{
         return {variable_name}Service.getById(id);
     }}
 
     @PostMapping
-    public String create() {{
-        return {variable_name}Service.create();
+    public {class_name}ResponseDto create(@RequestBody {class_name}RequestDto request) {{
+        return {variable_name}Service.create(request);
     }}
 
     @PutMapping("/{{id}}")
-    public String update(@PathVariable Long id) {{
-        return {variable_name}Service.update(id);
+    public {class_name}ResponseDto update(@PathVariable Long id, @RequestBody {class_name}RequestDto request) {{
+        return {variable_name}Service.update(id, request);
     }}
 
     @DeleteMapping("/{{id}}")
-    public String delete(@PathVariable Long id) {{
-        return {variable_name}Service.delete(id);
+    public void delete(@PathVariable Long id) {{
+        {variable_name}Service.delete(id);
     }}
 }}
 """
@@ -175,6 +193,9 @@ def generate_service(entity_name: str) -> str:
 
     return f"""package com.example.generated.service;
 
+import com.example.generated.dto.{class_name}RequestDto;
+import com.example.generated.dto.{class_name}ResponseDto;
+import com.example.generated.repository.{class_name}Repository;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -187,24 +208,24 @@ public class {class_name}Service {{
         this.{variable_name}Repository = {variable_name}Repository;
     }}
 
-    public List<String> getAll() {{
-        return List.of("List all {entity_name}");
+    public List<{class_name}ResponseDto> getAll() {{
+        return List.of();
     }}
 
-    public String getById(Long id) {{
-        return "Get {entity_name} by id: " + id;
+    public {class_name}ResponseDto getById(Long id) {{
+        return new {class_name}ResponseDto();
     }}
 
-    public String create() {{
-        return "Create {entity_name}";
+    public {class_name}ResponseDto create({class_name}RequestDto request) {{
+        return new {class_name}ResponseDto();
     }}
 
-    public String update(Long id) {{
-        return "Update {entity_name} by id: " + id;
+    public {class_name}ResponseDto update(Long id, {class_name}RequestDto request) {{
+        return new {class_name}ResponseDto();
     }}
 
-    public String delete(Long id) {{
-        return "Delete {entity_name} by id: " + id;
+    public void delete(Long id) {{
+        {variable_name}Repository.deleteById(id);
     }}
 }}
 """
