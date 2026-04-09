@@ -1,6 +1,13 @@
 from pathlib import Path
 from agent.models import Blueprint
 
+SQL_TYPE_MAPPING = {
+    "Long": "BIGINT",
+    "String": "VARCHAR(255)",
+    "BigDecimal": "DECIMAL(10,2)",
+    "Integer": "INT",
+    "LocalDateTime": "TIMESTAMP",
+}
 
 JAVA_TYPE_IMPORTS = {
     "LocalDateTime": "import java.time.LocalDateTime;",
@@ -14,6 +21,7 @@ PACKAGE_PATHS = {
     "controller": "controller",
     "service": "service",
     "repository": "repository",
+    "root": "",  # for schema.sql
 }
 
 
@@ -268,6 +276,7 @@ def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str,
         generated_files[f"{class_name}Controller.java"] = ("controller", generate_controller(entity_name))
         generated_files[f"{class_name}Service.java"] = ("service", generate_service(entity_name))
         generated_files[f"{class_name}Repository.java"] = ("repository", generate_repository(entity_name))
+        generated_files["schema.sql"] = ("root", generate_schema_sql(blueprint))
 
     return generated_files
 
@@ -281,9 +290,41 @@ def export_templates(
 
     for filename, (package_type, content) in generated_files.items():
         package_folder = PACKAGE_PATHS[package_type]
-        file_path = base_path / package_folder / filename
+        file_path = base_path / package_folder / filename if package_folder else Path(output_dir) / filename
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content, encoding="utf-8")
         saved_files.append(str(file_path))
 
     return saved_files
+
+def generate_schema_sql(blueprint: Blueprint) -> str:
+    statements = []
+
+    entity_map = {entity.name.lower(): entity for entity in blueprint.entities}
+
+    for table_name in blueprint.database_tables:
+        entity_name = to_base_entity_name(table_name)
+        entity_spec = entity_map.get(entity_name.lower())
+
+        field_specs = parse_fields(entity_spec.fields) if entity_spec else [
+            ("id", "Long"),
+            ("name", "String"),
+        ]
+
+        column_lines = []
+
+        for field_name, field_type in field_specs:
+            sql_type = SQL_TYPE_MAPPING.get(field_type, "VARCHAR(255)")
+
+            if field_name == "id":
+                column_lines.append("    id BIGINT PRIMARY KEY AUTO_INCREMENT")
+            else:
+                column_lines.append(f"    {field_name} {sql_type}")
+
+        table_sql = f"""CREATE TABLE {table_name} (
+{",\n".join(column_lines)}
+);"""
+
+        statements.append(table_sql)
+
+    return "\n\n".join(statements)

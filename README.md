@@ -20,6 +20,7 @@ A simple AI-inspired backend planning tool that converts plain English feature r
 - Generated request/response DTOs
 - Generated Spring Boot controller/service/repository templates
 - Exported Java files in a generated project structure
+- Generated SQL schema (schema.sql)
 
 ## Current MVP
 
@@ -44,4 +45,19 @@ generated/
     ├── entity/
     ├── repository/
     └── service/
+```
+
+## Generated Database Schema
+
+The tool generates a basic SQL schema based on detected entities.
+
+Example:
+
+```sql
+CREATE TABLE products (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    description VARCHAR(255),
+    price DECIMAL(10,2)
+);
 ```

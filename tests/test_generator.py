@@ -97,3 +97,14 @@ def test_export_templates_creates_files(tmp_path: Path):
     assert product_entity_path.exists()
     assert product_controller_path.exists()
     assert "class Product" in product_entity_path.read_text(encoding="utf-8")
+    
+def test_generate_schema_sql():
+    blueprint = generate_blueprint("Create CRUD API for products")
+
+    from agent.generator import generate_schema_sql
+
+    schema = generate_schema_sql(blueprint)
+
+    assert "CREATE TABLE products" in schema
+    assert "id BIGINT PRIMARY KEY AUTO_INCREMENT" in schema
+    assert "name VARCHAR(255)" in schema

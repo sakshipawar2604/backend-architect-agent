@@ -1,6 +1,7 @@
 import json
 from agent.planner import generate_blueprint
 from agent.generator import generate_spring_boot_templates, export_templates
+from agent.generator import generate_schema_sql
 
 
 def main():
@@ -10,6 +11,7 @@ def main():
     blueprint = generate_blueprint(feature_request)
 
     print("\nGenerated Blueprint:\n")
+    print(generate_schema_sql(blueprint))
     print(json.dumps(blueprint.model_dump(), indent=2))
 
     generated_files = generate_spring_boot_templates(blueprint)
