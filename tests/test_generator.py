@@ -130,3 +130,14 @@ def test_export_templates_creates_files(tmp_path: Path):
     assert product_controller_path.exists()
     assert schema_path.exists()
     assert "class Product" in product_entity_path.read_text(encoding="utf-8")
+    
+def test_auth_generation():
+    blueprint = generate_blueprint("Build user authentication system")
+    templates = generate_spring_boot_templates(blueprint)
+
+    assert "AuthController.java" in templates
+    assert "AuthService.java" in templates
+    assert "JwtService.java" in templates
+    assert "LoginRequestDto.java" in templates
+    assert "RegisterRequestDto.java" in templates
+    assert "AuthResponseDto.java" in templates

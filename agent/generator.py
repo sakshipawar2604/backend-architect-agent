@@ -357,6 +357,15 @@ def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str,
         generated_files[f"{class_name}Repository.java"] = ("repository", generate_repository(entity_name))
 
     generated_files["schema.sql"] = ("root", generate_schema_sql(blueprint))
+    # AUTH-SPECIFIC GENERATION
+    if blueprint.detected_intent == "authentication":
+        generated_files["AuthController.java"] = ("controller", generate_auth_controller())
+        generated_files["AuthService.java"] = ("service", generate_auth_service())
+        generated_files["JwtService.java"] = ("service", generate_jwt_service())
+
+        auth_dtos = generate_auth_dtos()
+        for filename, content in auth_dtos.items():
+            generated_files[filename] = ("dto", content)
     return generated_files
 
 
@@ -375,3 +384,103 @@ def export_templates(
         saved_files.append(str(file_path))
 
     return saved_files
+
+def generate_auth_controller() -> str:
+    return """package com.example.generated.controller;
+
+import com.example.generated.dto.*;
+import com.example.generated.service.AuthService;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    @PostMapping("/register")
+    public AuthResponseDto register(@RequestBody RegisterRequestDto request) {
+        return authService.register(request);
+    }
+
+    @PostMapping("/login")
+    public AuthResponseDto login(@RequestBody LoginRequestDto request) {
+        return authService.login(request);
+    }
+}
+"""
+def generate_auth_service() -> str:
+    return """package com.example.generated.service;
+
+import com.example.generated.dto.*;
+import org.springframework.stereotype.Service;
+
+@Service
+public class AuthService {
+
+    private final JwtService jwtService;
+
+    public AuthService(JwtService jwtService) {
+        this.jwtService = jwtService;
+    }
+
+    public AuthResponseDto register(RegisterRequestDto request) {
+        return new AuthResponseDto("dummy-jwt-token");
+    }
+
+    public AuthResponseDto login(LoginRequestDto request) {
+        return new AuthResponseDto("dummy-jwt-token");
+    }
+}
+"""
+
+def generate_jwt_service() -> str:
+    return """package com.example.generated.service;
+
+import org.springframework.stereotype.Service;
+
+@Service
+public class JwtService {
+
+    public String generateToken(String username) {
+        return "generated-jwt-token";
+    }
+
+    public boolean validateToken(String token) {
+        return true;
+    }
+}
+"""
+def generate_auth_dtos() -> dict[str, str]:
+    return {
+        "LoginRequestDto.java": """package com.example.generated.dto;
+
+public class LoginRequestDto {
+    private String email;
+    private String password;
+}
+""",
+        "RegisterRequestDto.java": """package com.example.generated.dto;
+
+public class RegisterRequestDto {
+    private String name;
+    private String email;
+    private String password;
+}
+""",
+        "AuthResponseDto.java": """package com.example.generated.dto;
+
+public class AuthResponseDto {
+
+    private String token;
+
+    public AuthResponseDto(String token) {
+        this.token = token;
+    }
+}
+"""
+    }

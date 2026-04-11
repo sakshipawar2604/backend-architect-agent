@@ -61,3 +61,25 @@ CREATE TABLE products (
     price DECIMAL(10,2)
 );
 ```
+
+## Authentication Support
+
+For authentication-related prompts, the generator produces:
+
+- AuthController
+- AuthService
+- JwtService
+- Login/Register DTOs
+- AuthResponse DTO
+
+Example:
+
+Input:
+
+- Build user authentication system
+
+Output:
+
+- /api/auth/login
+- /api/auth/register
+- JWT scaffolding
