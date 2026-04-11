@@ -141,3 +141,24 @@ def test_auth_generation():
     assert "LoginRequestDto.java" in templates
     assert "RegisterRequestDto.java" in templates
     assert "AuthResponseDto.java" in templates
+    
+def test_mapper_generation():
+    blueprint = generate_blueprint("Create CRUD API for products")
+    templates = generate_spring_boot_templates(blueprint)
+
+    assert "ProductMapper.java" in templates
+
+    _, content = templates["ProductMapper.java"]
+
+    assert "class ProductMapper" in content
+    assert "toResponseDto" in content
+    assert "toEntity" in content
+    
+def test_service_uses_mapper():
+    blueprint = generate_blueprint("Create CRUD API for products")
+    templates = generate_spring_boot_templates(blueprint)
+
+    _, service = templates["ProductService.java"]
+
+    assert "ProductMapper" in service
+    assert "toResponseDto" in service

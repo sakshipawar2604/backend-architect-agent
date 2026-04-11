@@ -83,3 +83,17 @@ Output:
 - /api/auth/login
 - /api/auth/register
 - JWT scaffolding
+
+## Mapper Layer
+
+The generator now includes a mapper layer for converting:
+
+- Entity → Response DTO
+- Request DTO → Entity
+
+Example:
+
+- ProductMapper.java
+- UserMapper.java
+
+This reflects real-world backend architecture practices.

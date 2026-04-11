@@ -23,6 +23,7 @@ PACKAGE_PATHS = {
     "controller": "controller",
     "service": "service",
     "repository": "repository",
+    "mapper": "mapper",
     "root": "",
 }
 
@@ -229,7 +230,6 @@ public class {class_name}Controller {{
 }}
 """
 
-
 def generate_service(entity_name: str) -> str:
     class_name = to_class_name(entity_name)
     variable_name = to_variable_name(entity_name)
@@ -239,6 +239,7 @@ def generate_service(entity_name: str) -> str:
 import com.example.generated.dto.{class_name}RequestDto;
 import com.example.generated.dto.{class_name}ResponseDto;
 import com.example.generated.repository.{class_name}Repository;
+import com.example.generated.mapper.{class_name}Mapper;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -256,15 +257,15 @@ public class {class_name}Service {{
     }}
 
     public {class_name}ResponseDto getById(Long id) {{
-        return new {class_name}ResponseDto();
+        return {class_name}Mapper.toResponseDto(null);
     }}
 
     public {class_name}ResponseDto create({class_name}RequestDto request) {{
-        return new {class_name}ResponseDto();
+        return {class_name}Mapper.toResponseDto(null);
     }}
 
     public {class_name}ResponseDto update(Long id, {class_name}RequestDto request) {{
-        return new {class_name}ResponseDto();
+        return {class_name}Mapper.toResponseDto(null);
     }}
 
     public void delete(Long id) {{
@@ -355,6 +356,7 @@ def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str,
         generated_files[f"{class_name}Controller.java"] = ("controller", generate_controller(entity_name))
         generated_files[f"{class_name}Service.java"] = ("service", generate_service(entity_name))
         generated_files[f"{class_name}Repository.java"] = ("repository", generate_repository(entity_name))
+        generated_files[f"{class_name}Mapper.java"] = ("mapper", generate_mapper(entity_name))
 
     generated_files["schema.sql"] = ("root", generate_schema_sql(blueprint))
     # AUTH-SPECIFIC GENERATION
@@ -484,3 +486,28 @@ public class AuthResponseDto {
 }
 """
     }
+
+def generate_mapper(entity_name: str) -> str:
+    class_name = to_class_name(entity_name)
+
+    return f"""package com.example.generated.mapper;
+
+import com.example.generated.entity.{class_name};
+import com.example.generated.dto.{class_name}RequestDto;
+import com.example.generated.dto.{class_name}ResponseDto;
+
+public class {class_name}Mapper {{
+
+    public static {class_name}ResponseDto toResponseDto({class_name} entity) {{
+        {class_name}ResponseDto dto = new {class_name}ResponseDto();
+        // TODO: map fields
+        return dto;
+    }}
+
+    public static {class_name} toEntity({class_name}RequestDto dto) {{
+        {class_name} entity = new {class_name}();
+        // TODO: map fields
+        return entity;
+    }}
+}}
+"""
