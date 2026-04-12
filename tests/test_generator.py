@@ -162,3 +162,26 @@ def test_service_uses_mapper():
 
     assert "ProductMapper" in service
     assert "toResponseDto" in service
+    
+def test_generate_templates_without_schema():
+    blueprint = generate_blueprint("Create CRUD API for products")
+    templates = generate_spring_boot_templates(blueprint, include_schema=False)
+
+    assert "Product.java" in templates
+    assert "schema.sql" not in templates
+
+
+def test_generate_auth_templates_can_be_disabled():
+    blueprint = generate_blueprint("Build user authentication system")
+    templates = generate_spring_boot_templates(
+        blueprint,
+        include_schema=True,
+        include_auth_support=False,
+    )
+
+    assert "AuthController.java" not in templates
+    assert "AuthService.java" not in templates
+    assert "JwtService.java" not in templates
+    assert "LoginRequestDto.java" not in templates
+    assert "RegisterRequestDto.java" not in templates
+    assert "AuthResponseDto.java" not in templates

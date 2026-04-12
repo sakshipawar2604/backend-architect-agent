@@ -34,6 +34,7 @@ A simple AI-inspired backend planning tool that converts plain English feature r
 - Includes unit tests for planner and generator logic
 - Uses DTO-aware controller and service signatures
 - Adds basic JPA annotations for generated entities
+- Supports CLI arguments for output and generation controls
 
 ## Output Structure
 

@@ -334,7 +334,11 @@ def generate_schema_sql(blueprint: Blueprint) -> str:
     return "\n\n".join(statements)
 
 
-def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str, str]]:
+def generate_spring_boot_templates(
+    blueprint: Blueprint,
+    include_schema: bool = True,
+    include_auth_support: bool = True,
+) -> dict[str, tuple[str, str]]:
     generated_files = {}
 
     entity_map = {entity.name.lower(): entity for entity in blueprint.entities}
@@ -358,9 +362,10 @@ def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str,
         generated_files[f"{class_name}Repository.java"] = ("repository", generate_repository(entity_name))
         generated_files[f"{class_name}Mapper.java"] = ("mapper", generate_mapper(entity_name))
 
-    generated_files["schema.sql"] = ("root", generate_schema_sql(blueprint))
-    # AUTH-SPECIFIC GENERATION
-    if blueprint.detected_intent == "authentication":
+    if include_schema:
+        generated_files["schema.sql"] = ("root", generate_schema_sql(blueprint))
+
+    if include_auth_support and blueprint.detected_intent == "authentication":
         generated_files["AuthController.java"] = ("controller", generate_auth_controller())
         generated_files["AuthService.java"] = ("service", generate_auth_service())
         generated_files["JwtService.java"] = ("service", generate_jwt_service())
@@ -368,6 +373,7 @@ def generate_spring_boot_templates(blueprint: Blueprint) -> dict[str, tuple[str,
         auth_dtos = generate_auth_dtos()
         for filename, content in auth_dtos.items():
             generated_files[filename] = ("dto", content)
+
     return generated_files
 
 
