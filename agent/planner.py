@@ -36,25 +36,39 @@ def to_table_name(word: str) -> str:
 def detect_intent(feature_request: str) -> str:
     request = feature_request.lower()
 
-    if any(keyword in request for keyword in ["auth", "authentication", "login", "register", "jwt"]):
+    if any(keyword in request for keyword in ["auth", "authentication", "login", "signup", "register", "jwt"]):
         return "authentication"
 
-    if any(keyword in request for keyword in ["crud", "create", "update", "delete", "list", "manage"]):
+    if any(keyword in request for keyword in [
+        "crud", "create", "update", "delete", "list",
+        "manage", "management", "service", "system"
+    ]):
         return "crud"
 
     return "general"
 
 
+def normalize_word(word: str) -> str:
+    word = word.lower().strip()
+    if word.endswith("ies"):
+        return word[:-3] + "y"
+    if word.endswith("s"):
+        return word[:-1]
+    return word
+
+
 def detect_entities(feature_request: str) -> list[str]:
     request = feature_request.lower()
-    detected = [entity for entity in KNOWN_ENTITIES.keys() if entity in request]
+    tokens = re.findall(r"[a-zA-Z]+", request)
 
-    if detected:
-        return detected
+    entities = []
+    for token in tokens:
+        normalized = normalize_word(token)
+        if normalized in KNOWN_ENTITIES and normalized not in entities:
+            entities.append(normalized)
 
-    matches = re.findall(r"\bfor\s+([a-zA-Z]+)", request)
-    if matches:
-        return [matches[0].lower().rstrip("s")]
+    if entities:
+        return entities
 
     return ["resource"]
 

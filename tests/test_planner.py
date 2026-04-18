@@ -61,3 +61,21 @@ def test_generate_crud_blueprint_for_products():
     assert "products" in blueprint.database_tables
     assert "ProductService" in blueprint.services
     assert any(endpoint.path == "/api/products" for endpoint in blueprint.endpoints)
+    
+
+def test_detect_entities_from_natural_language():
+    entities = detect_entities("I need backend for managing products and categories")
+
+    assert "product" in entities
+    assert "category" in entities
+
+
+def test_detect_entities_with_service_phrase():
+    entities = detect_entities("Create inventory service with product tracking")
+
+    assert "inventory" in entities
+    assert "product" in entities
+
+
+def test_detect_auth_intent_from_login_signup():
+    assert detect_intent("Build login and signup system") == "authentication"

@@ -98,3 +98,17 @@ Example:
 - UserMapper.java
 
 This reflects real-world backend architecture practices.
+
+## Natural Language Support
+
+The agent can understand flexible backend requests like:
+
+- “I need backend for managing products and categories”
+- “Build login and signup system”
+- “Create inventory service with product tracking”
+
+It automatically detects:
+
+- entities
+- backend intent
+- relationships
